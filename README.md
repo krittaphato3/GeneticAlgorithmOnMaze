@@ -2,7 +2,7 @@
 
 A Java Swing application designed to visualize and compare pathfinding algorithms on complex maze environments. This project features a **benchmark Dijkstra algorithm**, an **optimized A* Search**, and a **Hyper-Optimized Genetic Algorithm** capable of solving large-scale mazes (up to 100x100) in milliseconds.
 
-![Application Screenshot](screenshot.png)
+<img width="1468" height="933" alt="screenshot" src="https://github.com/user-attachments/assets/e39c69d8-66d7-4c5d-a308-f3721dd0e996" />
 
 ## 🚀 Features
 
