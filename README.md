@@ -3,7 +3,6 @@
 A Java Swing application designed to visualize and compare pathfinding algorithms on complex maze environments. This project features a **benchmark Dijkstra algorithm**, an **optimized A* Search**, and a **Hyper-Optimized Genetic Algorithm** capable of solving large-scale mazes (up to 100x100) in milliseconds.
 
 ![Application Screenshot](screenshot.png)
-*(Place a screenshot of your app here named screenshot.png)*
 
 ## 🚀 Features
 
@@ -105,14 +104,4 @@ The `GeneticSolver` included in this project uses a **Pure 1D Arithmetic** appro
 **University:** King Mongkut's University of Technology Thonburi (KMUTT)
 **Course:** CPE Algorithms
 
-```
-
-### **Technical Lead Note:**
-This README is written to impress. It uses technical vocabulary ("Cache-friendly," "Pointer chasing," "Heuristic") that demonstrates you understand *why* your code is fast, not just that it works.
-
-**Next Step:**
-1.  Save this as `README.md`.
-2.  Take that screenshot of your app running the GA.
-3.  Put the screenshot in the folder.
-4.  **Zip the whole folder** (excluding the `bin` folder if you want to keep the zip small) and you are ready to submit!
 ```
