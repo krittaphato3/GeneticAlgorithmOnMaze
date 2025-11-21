@@ -9,37 +9,32 @@ import java.util.stream.IntStream;
 
 public class GeneticSolver implements PathSolver {
 
-    // --- Tuned Parameters for Large Maps ---
+    // --- "Zero-Allocation" Parameters ---
     private int POPULATION_SIZE;
     private int MAX_GENERATIONS;
     private int GENOME_LENGTH;
-    private static final double MUTATION_RATE = 0.04; // Slightly lower to keep good paths stable
-    private static final int TOURNAMENT_SIZE = 6;     // Higher pressure to pick best parents
+    private static final double MUTATION_RATE = 0.04;
+    private static final int TOURNAMENT_SIZE = 5;
 
-    // Lookup Tables
+    // LUTs
     private static final int[] dRow = {-1, 1, 0, 0};
     private static final int[] dCol = {0, 0, -1, 1};
 
     @Override
     public String getName() {
-        return "GA (Deep Search)";
+        return "GA (Zero-Alloc / Native Copy)";
     }
 
     @Override
     public List<Cell> solve(Maze maze) {
-        // 1. AUTO-SCALE PARAMETERS
+        // 1. Setup Scaling
         int mapArea = maze.rows * maze.cols;
-        
-        // Massive population for massive mazes
-        POPULATION_SIZE = Math.min(5000, Math.max(1000, mapArea)); 
-        
-        // Give them enough steps to actually reach the end (2x area is a safe buffer)
+        POPULATION_SIZE = Math.min(4000, Math.max(1000, mapArea));
+        // Cap steps to prevent memory overflow, but ensure enough to finish
         GENOME_LENGTH = Math.min(10000, mapArea * 2); 
-        
-        // More time to evolve
-        MAX_GENERATIONS = 1000; 
+        MAX_GENERATIONS = 1000;
 
-        // 2. FLATTEN MAZE (Speed Optimization)
+        // 2. Fast Map (1D Boolean)
         boolean[] wallMap = new boolean[maze.rows * maze.cols];
         for (int r = 0; r < maze.rows; r++) {
             for (int c = 0; c < maze.cols; c++) {
@@ -52,118 +47,121 @@ public class GeneticSolver implements PathSolver {
         int goalR = maze.goal.row;
         int goalC = maze.goal.col;
 
-        // 3. INITIALIZE
-        List<Individual> population = initializePopulation(POPULATION_SIZE, GENOME_LENGTH, maze);
-        Individual globalBest = null;
+        // 3. ZERO-ALLOCATION SETUP (Double Buffering)
+        // We pre-allocate TWO arrays. We will never create another Individual after this.
+        Individual[] population = new Individual[POPULATION_SIZE];
+        Individual[] nextGen = new Individual[POPULATION_SIZE];
 
-        // 4. EVOLUTION LOOP
+        // Initialize reusable objects
+        for (int i = 0; i < POPULATION_SIZE; i++) {
+            population[i] = new Individual(GENOME_LENGTH);
+            nextGen[i] = new Individual(GENOME_LENGTH);
+        }
+
+        // Fill initial population
+        initializePopulation(population, maze);
+        
+        Individual globalBest = new Individual(GENOME_LENGTH); // Placeholder
+        globalBest.fitness = -1;
+
+        // 4. MAIN LOOP
         for (int gen = 0; gen < MAX_GENERATIONS; gen++) {
             
-            // Parallel Evaluation
-            population.parallelStream().forEach(ind -> 
-                evaluateFast(ind, wallMap, maze.rows, maze.cols, startR, startC, goalR, goalC)
+            // A. Parallel Evaluation
+            // We use a final reference for the lambda
+            final Individual[] currentPop = population;
+            IntStream.range(0, POPULATION_SIZE).parallel().forEach(i -> 
+                evaluateFast(currentPop[i], wallMap, maze.rows, maze.cols, startR, startC, goalR, goalC)
             );
 
-            // Find Gen Best
-            Individual genBest = null;
-            for (Individual ind : population) {
-                if (genBest == null || ind.fitness > genBest.fitness) {
-                    genBest = ind;
+            // B. Find Best (Linear Scan is faster than sorting for just one item)
+            Individual genBest = currentPop[0];
+            for (int i = 1; i < POPULATION_SIZE; i++) {
+                if (currentPop[i].fitness > genBest.fitness) {
+                    genBest = currentPop[i];
                 }
             }
 
-            // Update Global Best
-            if (globalBest == null || genBest.fitness > globalBest.fitness) {
-                globalBest = new Individual(genBest);
+            // C. Update Global Best
+            if (genBest.fitness > globalBest.fitness) {
+                // Manual deep copy to save the best result
+                System.arraycopy(genBest.genes, 0, globalBest.genes, 0, GENOME_LENGTH);
+                globalBest.fitness = genBest.fitness;
+                globalBest.reachedGoal = genBest.reachedGoal;
+                globalBest.validStepsCount = genBest.validStepsCount;
             }
 
-            // Exit early if Goal Reached
-            if (globalBest.reachedGoal) {
-                // Optimization: If found, break immediately. 
-                // For video demo, you can comment this out to see if it finds a SHORTER path later.
-                break; 
-            }
+            if (globalBest.reachedGoal) break;
 
-            // Breeding
-            List<Individual> nextGen = new ArrayList<>(POPULATION_SIZE);
-            nextGen.add(new Individual(globalBest)); // Elitism
+            // D. Parallel Breeding (Zero Allocation)
+            // We write DIRECTLY into 'nextGen' array. No 'new' keyword.
+            final Individual[] nextPopRef = nextGen; // Final ref for lambda
             
-            List<Individual> currentPop = population;
+            // Elitism: Copy best to slot 0
+            System.arraycopy(globalBest.genes, 0, nextPopRef[0].genes, 0, GENOME_LENGTH);
+            
+            // Breed the rest
+            IntStream.range(1, POPULATION_SIZE).parallel().forEach(i -> {
+                ThreadLocalRandom rand = ThreadLocalRandom.current();
+                
+                // Tournament Selection (Indices only to avoid object passing)
+                Individual p1 = tournamentSelect(currentPop, rand);
+                Individual p2 = tournamentSelect(currentPop, rand);
+                
+                // Native Crossover into Target Object
+                crossoverAndMutate(p1, p2, nextPopRef[i], rand);
+            });
 
-            // Parallel Breeding
-            List<Individual> children = IntStream.range(0, POPULATION_SIZE - 1)
-                .parallel()
-                .mapToObj(i -> {
-                    Individual p1 = tournamentSelection(currentPop);
-                    Individual p2 = tournamentSelection(currentPop);
-                    Individual child = uniformCrossover(p1, p2);
-                    mutate(child);
-                    return child;
-                })
-                .toList();
-            
-            nextGen.addAll(children);
+            // E. Swap Buffers (The Magic Trick)
+            // 'nextGen' becomes 'population' for the next round.
+            // Old 'population' becomes the write-buffer for the round after.
+            Individual[] temp = population;
             population = nextGen;
+            nextGen = temp;
         }
 
         return reconstructPath(globalBest, maze);
     }
 
-    // --- High-Performance Logic (No "Stuck" Check) ---
+    // --- Fast Evaluation ---
     private void evaluateFast(Individual ind, boolean[] wallMap, int rows, int cols, 
                               int startR, int startC, int goalR, int goalC) {
-        
         int currR = startR;
         int currC = startC;
-        int stepsTaken = 0;
+        int steps = 0;
         
-        // Walk the full genome
-        for (int i = 0; i < ind.genes.length; i++) {
+        for (int i = 0; i < GENOME_LENGTH; i++) {
             byte move = ind.genes[i];
             int nextR = currR + dRow[move];
             int nextC = currC + dCol[move];
 
-            // Boundary Check
             if (nextR >= 0 && nextR < rows && nextC >= 0 && nextC < cols) {
-                // Wall Check
                 if (!wallMap[nextR * cols + nextC]) {
                     currR = nextR;
                     currC = nextC;
-                    stepsTaken++;
-                    
+                    steps++;
                     if (currR == goalR && currC == goalC) {
                         ind.reachedGoal = true;
-                        ind.validStepsCount = stepsTaken;
-                        break; 
+                        ind.validStepsCount = steps;
+                        ind.fitness = 1_000_000.0 - steps; // Priority 1: Goal
+                        return;
                     }
-                } 
-                // REMOVED THE COLLISION "ELSE" BLOCK HERE
-                // We just ignore the move if it hits a wall, but we KEEP TRYING.
+                }
             }
         }
         
-        if (!ind.reachedGoal) ind.validStepsCount = stepsTaken;
-
-        // Fitness Calculation
+        ind.reachedGoal = false;
+        ind.validStepsCount = steps;
         int dist = Math.abs(currR - goalR) + Math.abs(currC - goalC);
-        
-        if (ind.reachedGoal) {
-            // Priority 1: Reached Goal (Score > 1M)
-            ind.fitness = 1_000_000.0 - ind.validStepsCount; 
-        } else {
-            // Priority 2: Get Close (Score < 10k)
-            // We use distance squared to HEAVILY punish being far away
-            // This pulls the population towards the goal like a magnet
-            ind.fitness = 10_000.0 - (dist * dist); 
-        }
+        ind.fitness = 10_000.0 - (dist * dist); // Priority 2: Distance^2
     }
 
-    // --- Standard Genetic Ops ---
-    private Individual tournamentSelection(List<Individual> pop) {
-        ThreadLocalRandom rand = ThreadLocalRandom.current();
-        Individual best = pop.get(rand.nextInt(pop.size()));
+    // --- Zero-Alloc Operations ---
+
+    private Individual tournamentSelect(Individual[] pop, ThreadLocalRandom rand) {
+        Individual best = pop[rand.nextInt(POPULATION_SIZE)];
         for (int i = 0; i < TOURNAMENT_SIZE - 1; i++) {
-            Individual contender = pop.get(rand.nextInt(pop.size()));
+            Individual contender = pop[rand.nextInt(POPULATION_SIZE)];
             if (contender.fitness > best.fitness) {
                 best = contender;
             }
@@ -171,49 +169,45 @@ public class GeneticSolver implements PathSolver {
         return best;
     }
 
-    private Individual uniformCrossover(Individual p1, Individual p2) {
-        Individual child = new Individual(p1.genes.length);
-        ThreadLocalRandom rand = ThreadLocalRandom.current();
-        for (int i = 0; i < p1.genes.length; i++) {
-            child.genes[i] = rand.nextBoolean() ? p1.genes[i] : p2.genes[i];
-        }
-        return child;
-    }
+    // Combined for speed. Writes result directly into 'child' object.
+    private void crossoverAndMutate(Individual p1, Individual p2, Individual child, ThreadLocalRandom rand) {
+        // 1. Single-Point Crossover using System.arraycopy (NATIVE SPEED)
+        int mid = rand.nextInt(GENOME_LENGTH);
+        
+        // Copy p1 0..mid
+        System.arraycopy(p1.genes, 0, child.genes, 0, mid);
+        // Copy p2 mid..end
+        System.arraycopy(p2.genes, mid, child.genes, mid, GENOME_LENGTH - mid);
 
-    private void mutate(Individual ind) {
-        ThreadLocalRandom rand = ThreadLocalRandom.current();
-        for (int i = 0; i < ind.genes.length; i++) {
+        // 2. Mutation (Inline)
+        // We only mutate ~10 genes on average to keep it fast, or loop if needed.
+        // For correctness, we loop, but since byte[] access is fast, it's okay.
+        // Optimization: Skip loop if mutation rate is low? No, reliability first.
+        for (int i = 0; i < GENOME_LENGTH; i++) {
             if (rand.nextDouble() < MUTATION_RATE) {
-                ind.genes[i] = (byte) rand.nextInt(4);
+                child.genes[i] = (byte) rand.nextInt(4);
             }
         }
     }
 
-    private List<Individual> initializePopulation(int size, int length, Maze maze) {
-        List<Individual> pop = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) {
-            Individual ind = new Individual(length);
-            ThreadLocalRandom rand = ThreadLocalRandom.current();
-            
-            // Smart Initialization: 50% Guided
-            int biasDir = -1;
-            if (rand.nextDouble() < 0.5) { 
-                 int dR = maze.goal.row - maze.start.row;
-                 int dC = maze.goal.col - maze.start.col;
-                 if (Math.abs(dR) > Math.abs(dC)) biasDir = dR > 0 ? 1 : 0;
-                 else biasDir = dC > 0 ? 3 : 2;
-            }
+    private void initializePopulation(Individual[] pop, Maze maze) {
+        ThreadLocalRandom rand = ThreadLocalRandom.current();
+        int dR = maze.goal.row - maze.start.row;
+        int dC = maze.goal.col - maze.start.col;
+        int biasDir = -1;
+        if (Math.abs(dR) > Math.abs(dC)) biasDir = dR > 0 ? 1 : 0;
+        else biasDir = dC > 0 ? 3 : 2;
 
-            for (int j = 0; j < length; j++) {
-                if (biasDir != -1 && rand.nextDouble() < 0.4) { // 40% bias strength
-                    ind.genes[j] = (byte) biasDir;
+        for (int i = 0; i < POPULATION_SIZE; i++) {
+            boolean guided = i < POPULATION_SIZE / 2;
+            for (int j = 0; j < GENOME_LENGTH; j++) {
+                if (guided && rand.nextDouble() < 0.4) {
+                    pop[i].genes[j] = (byte) biasDir;
                 } else {
-                    ind.genes[j] = (byte) rand.nextInt(4);
+                    pop[i].genes[j] = (byte) rand.nextInt(4);
                 }
             }
-            pop.add(ind);
         }
-        return pop;
     }
 
     private List<Cell> reconstructPath(Individual ind, Maze maze) {
@@ -224,10 +218,8 @@ public class GeneticSolver implements PathSolver {
 
         for (int i = 0; i < ind.genes.length; i++) {
             if (path.size() > ind.validStepsCount + 1) break;
-
             int nextR = r + dRow[ind.genes[i]];
             int nextC = c + dCol[ind.genes[i]];
-
             if (maze.isValid(nextR, nextC)) {
                 r = nextR;
                 c = nextC;
@@ -238,7 +230,8 @@ public class GeneticSolver implements PathSolver {
         return path;
     }
 
-    private static class Individual implements Comparable<Individual> {
+    // --- Data Container ---
+    private static class Individual {
         byte[] genes;
         double fitness;
         boolean reachedGoal;
@@ -246,18 +239,6 @@ public class GeneticSolver implements PathSolver {
 
         public Individual(int length) {
             genes = new byte[length];
-        }
-        
-        public Individual(Individual other) {
-            this.genes = Arrays.copyOf(other.genes, other.genes.length);
-            this.fitness = other.fitness;
-            this.reachedGoal = other.reachedGoal;
-            this.validStepsCount = other.validStepsCount;
-        }
-
-        @Override
-        public int compareTo(Individual other) {
-            return Double.compare(other.fitness, this.fitness);
         }
     }
 }
