@@ -103,5 +103,3 @@ The `GeneticSolver` included in this project uses a **Pure 1D Arithmetic** appro
 **Student Name:** Krittaphat Panyasomphan
 **University:** King Mongkut's University of Technology Thonburi (KMUTT)
 **Course:** CPE Algorithms
-
-```
