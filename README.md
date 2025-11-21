@@ -1,10 +1,3 @@
-Here is a professional, industry-standard `README.md` for your project. It highlights the technical depth of your Genetic Algorithm (using the specific optimizations in the code you provided) and provides clear instructions for anyone (including your professor) to run it.
-
-I have included a placeholder for a screenshot. You should take a screenshot of your application running the GA (like the one you showed me earlier) and save it as `screenshot.png` in your project folder.
-
-### **Recommended Action:** Create a file named `README.md` in your project root and paste this content in.
-
-````markdown
 # 🏃‍♂️ Maze Runner: High-Performance Pathfinding Visualization
 
 A Java Swing application designed to visualize and compare pathfinding algorithms on complex maze environments. This project features a **benchmark Dijkstra algorithm**, an **optimized A* Search**, and a **Hyper-Optimized Genetic Algorithm** capable of solving large-scale mazes (up to 100x100) in milliseconds.
