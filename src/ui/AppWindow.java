@@ -1,6 +1,6 @@
 package ui;
 
-import algorithms.*; // Import all solvers
+import algorithms.*;
 import models.Cell;
 import models.Maze;
 import utils.MazeParser;

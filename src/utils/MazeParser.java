@@ -13,14 +13,11 @@ import java.util.regex.Pattern;
 
 public class MazeParser {
 
-    // Regex to find: "Number", S, G, or #
-    // Group 1 will contain the digits if it's a number
     private static final Pattern CELL_PATTERN = Pattern.compile("\"(\\d+)\"|S|G|#");
 
     public static Maze parseMaze(File file) throws IOException {
         List<String> lines = new ArrayList<>();
         
-        // 1. Read all lines first to determine dimensions
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = br.readLine()) != null) {
@@ -33,17 +30,13 @@ public class MazeParser {
         if (lines.isEmpty()) throw new IOException("File is empty");
 
         int rows = lines.size();
-        // We estimate cols from the first line, but we'll adjust dynamically
         int cols = 0; 
 
-        // We need to parse the first line just to count columns accurately
-        // (This is a quick pass to get dimensions)
         Matcher m = CELL_PATTERN.matcher(lines.get(0));
         while (m.find()) cols++;
 
         Maze maze = new Maze(rows, cols);
 
-        // 2. Parse strictly
         for (int r = 0; r < rows; r++) {
             String line = lines.get(r);
             Matcher matcher = CELL_PATTERN.matcher(line);
@@ -62,8 +55,6 @@ public class MazeParser {
                     cell.isGoal = true;
                     maze.goal = cell;
                 } else {
-                    // It's a number like "10". Group 1 has the digits.
-                    // If group(1) is null, it matched something weird, treat as wall or 0
                     if (matcher.group(1) != null) {
                         cell.weight = Integer.parseInt(matcher.group(1));
                     }

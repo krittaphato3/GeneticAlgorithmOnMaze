@@ -13,12 +13,11 @@ public class GeneticSolver implements PathSolver {
     private int MAX_GENERATIONS;
     private int GENOME_LENGTH;
     
-    // User Configuration Values
     private int userPop = -1;
     private int userGen = -1;
     private int userLen = -1;
-    private double userMutation = 0.03; // Default
-    private int userElitism = 50;       // Default
+    private double userMutation = 0.03; 
+    private int userElitism = 50;      
 
     private static final int TOURNAMENT_SIZE = 5;
 
@@ -39,12 +38,10 @@ public class GeneticSolver implements PathSolver {
     public List<Cell> solve(Maze maze) {
         int mapArea = maze.rows * maze.cols;
         
-        // Apply Config
         POPULATION_SIZE = (userPop > 0) ? userPop : Math.min(6000, Math.max(2000, mapArea * 4));
         MAX_GENERATIONS = (userGen > 0) ? userGen : 3000;
         GENOME_LENGTH = (userLen > 0) ? userLen : Math.min(10000, mapArea * 3);
         
-        // Flatten Map
         int paddedCols = maze.cols + 2;
         int size = (maze.rows + 2) * paddedCols;
         boolean[] wallMap = new boolean[size];
@@ -65,7 +62,6 @@ public class GeneticSolver implements PathSolver {
         int goalIdx = (maze.goal.row + 1) * paddedCols + (maze.goal.col + 1);
         int[] moveOffsets = {-paddedCols, paddedCols, -1, 1}; 
 
-        // Initialize
         Individual[] population = new Individual[POPULATION_SIZE];
         Individual[] nextGen = new Individual[POPULATION_SIZE];
         for (int i = 0; i < POPULATION_SIZE; i++) {
@@ -82,15 +78,12 @@ public class GeneticSolver implements PathSolver {
         for (int gen = 0; gen < MAX_GENERATIONS; gen++) {
             final Individual[] currentPop = population;
 
-            // 1. Fitness (Use Cost-Based Logic)
             IntStream.range(0, POPULATION_SIZE).parallel().forEach(i ->
                 evaluate(currentPop[i], wallMap, weightMap, moveOffsets, startIdx, goalIdx, paddedCols)
             );
 
-            // 2. Sort
             Arrays.parallelSort(currentPop, (a, b) -> Double.compare(b.fitness, a.fitness));
 
-            // 3. Track Best
             if (currentPop[0].fitness > globalBest.fitness) {
                 System.arraycopy(currentPop[0].genes, 0, globalBest.genes, 0, GENOME_LENGTH);
                 globalBest.fitness = currentPop[0].fitness;
@@ -103,16 +96,14 @@ public class GeneticSolver implements PathSolver {
 
             if (globalBest.reachedGoal && stagnation > 200) break;
 
-            // 4. Elitism (Preserve top N based on user setting)
             final Individual[] nextPopRef = nextGen;
-            int elitesToKeep = Math.min(userElitism, POPULATION_SIZE / 2); // Safety clamp
+            int elitesToKeep = Math.min(userElitism, POPULATION_SIZE / 2);
             
             for (int i = 0; i < elitesToKeep; i++) {
                 System.arraycopy(currentPop[i].genes, 0, nextPopRef[i].genes, 0, GENOME_LENGTH);
                 nextPopRef[i].fitness = currentPop[i].fitness;
             }
 
-            // 5. Crossover & Mutation (Using userMutation rate)
             IntStream.range(elitesToKeep, POPULATION_SIZE).parallel().forEach(i -> {
                 ThreadLocalRandom rand = ThreadLocalRandom.current();
                 Individual p1 = tournamentSelect(currentPop, rand);
@@ -142,7 +133,6 @@ public class GeneticSolver implements PathSolver {
                 if (curr == goal) {
                     ind.reachedGoal = true;
                     ind.validGenes = steps;
-                    // Maximize fitness = minimize cost
                     ind.fitness = 100_000_000.0 - cost;
                     return;
                 }
@@ -151,7 +141,6 @@ public class GeneticSolver implements PathSolver {
         
         ind.reachedGoal = false;
         ind.validGenes = steps;
-        // Heuristic penalty distance
         int r = curr / width, c = curr % width;
         int gr = goal / width, gc = goal % width;
         double distSq = (r - gr) * (r - gr) + (c - gc) * (c - gc);
@@ -163,7 +152,6 @@ public class GeneticSolver implements PathSolver {
         System.arraycopy(p1.genes, 0, child.genes, 0, mid);
         System.arraycopy(p2.genes, mid, child.genes, mid, GENOME_LENGTH - mid);
 
-        // Geometric Skip Mutation
         if (mutationRate > 0.0) {
             double logInv = Math.log(1.0 - mutationRate);
             int idx = 0;
@@ -193,8 +181,8 @@ public class GeneticSolver implements PathSolver {
         ThreadLocalRandom rand = ThreadLocalRandom.current();
         int sr = start/width, sc = start%width;
         int gr = goal/width, gc = goal%width;
-        int bias1 = (gr > sr) ? 1 : 0; // Vertical bias
-        int bias2 = (gc > sc) ? 3 : 2; // Horizontal bias
+        int bias1 = (gr > sr) ? 1 : 0;
+        int bias2 = (gc > sc) ? 3 : 2; 
 
         for (int i = 0; i < POPULATION_SIZE; i++) {
             boolean guided = i < (POPULATION_SIZE * 0.7);
@@ -229,8 +217,6 @@ public class GeneticSolver implements PathSolver {
                 if (cell.isGoal) break;
             }
         }
-
-        // Loop Erasure for Dijkstra-like path
         List<Cell> cleanPath = new ArrayList<>();
         Set<Cell> visited = new HashSet<>();
         for (Cell cell : rawPath) {

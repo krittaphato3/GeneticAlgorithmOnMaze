@@ -9,12 +9,10 @@ import java.util.stream.IntStream;
 
 public class GeneticSolver2 implements PathSolver {
 
-    // Configuration
     private int POPULATION_SIZE;
     private int MAX_GENERATIONS;
     private int GENOME_LENGTH;
 
-    // User Overrides
     private int userPop = -1;
     private int userGen = -1;
     private int userLen = -1;
@@ -39,8 +37,6 @@ public class GeneticSolver2 implements PathSolver {
     @Override
     public List<Cell> solve(Maze maze) {
         int mapArea = maze.rows * maze.cols;
-        
-        // 1. Config
         POPULATION_SIZE = (userPop > 0) ? userPop : Math.min(6000, Math.max(2000, mapArea * 4));
         MAX_GENERATIONS = (userGen > 0) ? userGen : 3000;
         GENOME_LENGTH = (userLen > 0) ? userLen : Math.min(10000, mapArea * 3);
@@ -49,7 +45,7 @@ public class GeneticSolver2 implements PathSolver {
         int paddedCols = maze.cols + 2;
         int totalSize = paddedRows * paddedCols;
         boolean[] wallMap = new boolean[totalSize];
-        int[] weightMap = new int[totalSize]; // Added weight support
+        int[] weightMap = new int[totalSize];
         Arrays.fill(wallMap, true);
 
         for (int r = 0; r < maze.rows; r++) {
@@ -65,19 +61,14 @@ public class GeneticSolver2 implements PathSolver {
         int startIdx = (maze.start.row + 1) * paddedCols + (maze.start.col + 1);
         int goalIdx = (maze.goal.row + 1) * paddedCols + (maze.goal.col + 1);
         int[] moveOffsets = {-paddedCols, paddedCols, -1, 1};
-
-        // --- DATA ORIENTED DESIGN (SoA) ---
-        // Flattened arrays for cache locality
         byte[] currentGenes = new byte[POPULATION_SIZE * GENOME_LENGTH];
         byte[] nextGenes = new byte[POPULATION_SIZE * GENOME_LENGTH];
         double[] fitness = new double[POPULATION_SIZE];
         int[] validSteps = new int[POPULATION_SIZE];
         boolean[] reachedGoal = new boolean[POPULATION_SIZE];
 
-        // Init
         initializeGenes(currentGenes, startIdx, goalIdx, paddedCols);
 
-        // Track Global Best
         byte[] bestGenes = new byte[GENOME_LENGTH];
         double bestFitness = -Double.MAX_VALUE;
         boolean bestReached = false;
@@ -89,19 +80,16 @@ public class GeneticSolver2 implements PathSolver {
 
             final byte[] genesRef = currentGenes;
 
-            // 1. Parallel Evaluate
             IntStream.range(0, POPULATION_SIZE).parallel().forEach(i -> 
                 evaluateInd(i, genesRef, fitness, validSteps, reachedGoal, 
                             wallMap, weightMap, moveOffsets, startIdx, goalIdx, paddedCols)
             );
 
-            // 2. Find Best (Linear Scan for primitives)
             int bestIdx = 0;
             for (int i = 1; i < POPULATION_SIZE; i++) {
                 if (fitness[i] > fitness[bestIdx]) bestIdx = i;
             }
 
-            // 3. Update Global
             if (fitness[bestIdx] > bestFitness) {
                 System.arraycopy(currentGenes, bestIdx * GENOME_LENGTH, bestGenes, 0, GENOME_LENGTH);
                 bestFitness = fitness[bestIdx];
@@ -113,27 +101,15 @@ public class GeneticSolver2 implements PathSolver {
             }
 
             if (bestReached && stagnation > 200) break;
-
-            // 4. Elitism & Breeding
             final byte[] nextGenesRef = nextGenes;
             final int elites = Math.min(userElitism, POPULATION_SIZE/2);
-
-            // Copy Elites (Manual array copy for performance)
-            // Note: Since we don't sort the whole population arrays in DOD to avoid thrashing,
-            // we'll just keep the absolute best found so far in slot 0, and random elites.
-            // For true sorted elitism in DOD, we'd need an index array. 
-            // Here we use a simpler strategy: Keep Global Best in Slot 0.
             System.arraycopy(bestGenes, 0, nextGenesRef, 0, GENOME_LENGTH);
-            
-            // Breed the rest
             IntStream.range(1, POPULATION_SIZE).parallel().forEach(i -> {
                 ThreadLocalRandom rand = ThreadLocalRandom.current();
                 int p1 = tournamentSelect(fitness, rand);
                 int p2 = tournamentSelect(fitness, rand);
                 breed(p1, p2, i, genesRef, nextGenesRef, rand, userMutation);
             });
-
-            // Swap
             byte[] temp = currentGenes;
             currentGenes = nextGenes;
             nextGenes = temp;
@@ -161,7 +137,6 @@ public class GeneticSolver2 implements PathSolver {
                 
                 if (curr == goal) {
                     hit = true;
-                    // Maximize fitness = Minimize Cost
                     fitness[idx] = 100_000_000.0 - cost;
                     break;
                 }
@@ -245,9 +220,6 @@ public class GeneticSolver2 implements PathSolver {
 
         for (int i = 0; i < GENOME_LENGTH; i++) {
             if (i >= validLen) break; 
-            // If we reached goal in evaluate, we stored 'validLen'. 
-            // Note: bestReached boolean logic in main loop handles the break condition
-            
             int nr = r + dr[genes[i]];
             int nc = c + dc[genes[i]];
             if (maze.isValid(nr, nc)) {
