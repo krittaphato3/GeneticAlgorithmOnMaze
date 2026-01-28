@@ -1,6 +1,7 @@
-package models;
+package mazerunner.models;
 
 public class Cell {
+
     public int row;
     public int col;
     public int weight;
@@ -17,9 +18,15 @@ public class Cell {
 
     @Override
     public String toString() {
-        if (isWall) return "[#]";
-        if (isStart) return "[S]";
-        if (isGoal) return "[G]";
-        return "[" + weight + "]";
+        if (isWall) {
+            return "[ #]";
+        }
+        if (isStart) {
+            return "[ S]";
+        }
+        if (isGoal) {
+            return "[ G]";
+        }
+        return (weight != 10) ? "[ " + weight + "]" : "[" + weight + "]";
     }
 }

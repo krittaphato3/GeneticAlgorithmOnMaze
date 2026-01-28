@@ -1,11 +1,16 @@
-package algorithms;
+package mazerunner.algorithms;
 
-import models.Cell;
-import models.Maze;
-
+import mazerunner.models.Cell;
+import mazerunner.models.Maze;
 import java.util.*;
 
-public class DijkstraSolver implements PathSolver {
+public class DijkstraSolver implements MazeSolver {
+
+    private Maze maze;
+
+    public DijkstraSolver(Maze maze) {
+        this.maze = maze;
+    }
 
     @Override
     public String getName() {
@@ -13,14 +18,16 @@ public class DijkstraSolver implements PathSolver {
     }
 
     @Override
-    public List<Cell> solve(Maze maze) {
+    public List<Cell> solve() {
         int[][] dist = new int[maze.rows][maze.cols];
         Cell[][] parent = new Cell[maze.rows][maze.cols];
-        
-        for (int[] row : dist) Arrays.fill(row, Integer.MAX_VALUE);
 
-        PriorityQueue<Cell> pq =
-                new PriorityQueue<>(Comparator.comparingInt(c -> dist[c.row][c.col]));
+        for (int[] row : dist) {
+            Arrays.fill(row, Integer.MAX_VALUE);
+        }
+
+        PriorityQueue<Cell> pq
+                = new PriorityQueue<>(Comparator.comparingInt(c -> dist[c.row][c.col]));
 
         Cell start = maze.start;
         Cell goal = maze.goal;
@@ -30,7 +37,9 @@ public class DijkstraSolver implements PathSolver {
 
         while (!pq.isEmpty()) {
             Cell current = pq.poll();
-            if (current == goal) break;
+            if (current == goal) {
+                break;
+            }
 
             int[] dRow = {-1, 1, 0, 0};
             int[] dCol = {0, 0, -1, 1};
@@ -57,7 +66,9 @@ public class DijkstraSolver implements PathSolver {
         List<Cell> path = new ArrayList<>();
         Cell crawl = goal;
 
-        if (dist[goal.row][goal.col] == Integer.MAX_VALUE) return path;
+        if (dist[goal.row][goal.col] == Integer.MAX_VALUE) {
+            return path;
+        }
 
         while (crawl != null) {
             path.add(crawl);

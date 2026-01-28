@@ -1,105 +1,105 @@
-# 🏃‍♂️ Maze Runner: High-Performance Pathfinding Visualization
+# MazeRunner
 
-A Java Swing application designed to visualize and compare pathfinding algorithms on complex maze environments. This project features a **benchmark Dijkstra algorithm**, an **optimized A* Search**, and a **Hyper-Optimized Genetic Algorithm** capable of solving large-scale mazes (up to 100x100) in milliseconds.
+**MazeRunner** is a sophisticated Java-based pathfinding simulation and visualization tool. It serves as an interactive sandbox for exploring algorithmic efficiency, with a specialized focus on **Genetic Algorithms (GA)** alongside classic graph traversal methods like A* and Dijkstra.
 
-<img width="1468" height="933" alt="screenshot" src="https://github.com/user-attachments/assets/e39c69d8-66d7-4c5d-a308-f3721dd0e996" />
+## 🚀 Project Overview
 
-## 🚀 Features
+MazeRunner allows users to visualize how different algorithms navigate complex grid-based environments. It provides real-time feedback on path costs, execution time, and algorithmic convergence. The project is designed for educational purposes, algorithm benchmarking, and experimentation with evolutionary computation parameters.
 
-### 🧠 Algorithms
-1.  **Dijkstra's Algorithm:** Acts as the "Gold Standard" benchmark. Guarantees the mathematically shortest path.
-2.  **A* (A-Star) Search:** An optimized heuristic solver using Manhattan Distance for rapid pathfinding.
-3.  **Genetic Algorithm (High-Performance):** A custom implementation focused on raw speed and scalability.
-    * **Architecture:** Pure 1D Arithmetic (No object overhead in hot loops).
-    * **Optimization:** Uses a Flattened 1D Boolean Array for cache-friendly memory access.
-    * **Performance:** Utilizes `parallelStream()` for multi-threaded evaluation.
-    * **Mutation:** Implements "Geometric Skip Mutation" (`Math.log`) to reduce random number generation by ~96%.
-
-### 🎨 UI/UX "Pro Edition"
-* **Dark Mode Dashboard:** Modern, eye-friendly interface.
-* **Dynamic Rendering:** Auto-scales mazes to fit the window.
-* **Zoom & Pan:** Mouse-centric zoom and drag support for inspecting large maps.
-* **Interactive Grid:** Hover over cells to see coordinate and weight data.
-
----
-
-## 🛠️ Project Structure
-
-```text
-MazeRunner_Project/
-├── data/                  # Map text files (e.g., m15_15.txt, m100_100.txt)
-├── src/
-│   ├── algorithms/        # Pathfinding Logic (Dijkstra, A*, GeneticSolver)
-│   ├── models/            # Data Structures (Maze, Cell)
-│   ├── ui/                # Swing Components (AppWindow, MazePanel)
-│   ├── utils/             # File Parsing (MazeParser)
-│   └── Main.java          # Entry Point
-└── README.md              # Documentation
-````
-
------
-
-## ⚡ How to Run
+## 📦 Installation
 
 ### Prerequisites
+*   **Java Development Kit (JDK) 8** or higher.
+*   **Git** (optional, for cloning).
 
-  * **Java JDK 8** or higher installed.
-  * Terminal / Command Prompt access.
+### Steps
 
-### Option 1: Compilation via Terminal (Recommended)
-
-1.  **Navigate to the project root folder:**
-
+1.  **Clone the repository:**
     ```bash
-    cd path/to/MazeRunner_Project
+    git clone https://github.com/yourusername/MazeRunner.git
+    cd MazeRunner
     ```
 
 2.  **Compile the source code:**
-    This command compiles all modules and places them in a `bin` directory.
-
+    We use the standard Java compiler. Run the following command from the project root:
     ```bash
-    javac -d bin -cp src src/Main.java src/models/*.java src/utils/*.java src/ui/*.java src/algorithms/*.java
+    # Create the binary directory
+    mkdir bin
+    
+    # Compile
+    javac -d bin -sourcepath src/main/java src/main/java/mazerunner/Main.java
     ```
 
-3.  **Run the application:**
+## 🎮 Usage
 
-    ```bash
-    java -cp bin Main
-    ```
+### Running the Application
+To start the MazeRunner GUI:
 
-### Option 2: Running in an IDE
+```bash
+java -cp bin mazerunner.Main
+```
 
-  * Open the folder `MazeRunner_Project` in VS Code, IntelliJ, or Eclipse.
-  * **Do not** just open the `src` folder; the IDE needs the root folder to find the `data/` directory.
-  * Run `src/Main.java`.
+### Workflow
+1.  **Load Maze:** Use the sidebar to load a `.txt` maze file from `src/main/resources/mazes`.
+2.  **Choose Algorithm:** Select *Genetic Algorithm*, *Dijkstra*, or *A**.
+3.  **Visualize:** Click **Run Algorithm** to see the pathfinding in action. The grid will display:
+    *   🟩 **Green:** Start Point
+    *   🟥 **Red:** Goal Point
+    *   🟨 **Yellow:** Computed Path
+    *   ⬛ **Black:** Walls
 
------
+## ⚙️ Configuration
 
-## 🎮 Usage Guide
+MazeRunner provides extensive configuration options primarily through its Graphical User Interface (GUI). No external config files or environment variables are required.
 
-1.  **Load Map:** Click the "Load Map" button in the sidebar. Select a `.txt` file from the `data/` folder.
-2.  **Run Benchmark:** Click "Run Dijkstra" to see the optimal path and cost. This sets the baseline.
-3.  **Run Genetic Algo:** Click "Run Genetic Algorithm".
-      * Watch the console log at the bottom for performance stats.
-      * If the path is not found immediately, click it again (GA is probabilistic).
-4.  **Inspect:**
-      * **Scroll Wheel:** Zoom in/out (zooms toward mouse cursor).
-      * **Click & Drag:** Pan around the map when zoomed in.
+### Genetic Algorithm Parameters
+When the **Genetic Algorithm** is selected, a dedicated configuration panel appears:
 
------
+| Parameter | Description | Default |
+| :--- | :--- | :--- |
+| **Population Size** | Number of individuals in each generation. | `1000` |
+| **Max Generations** | Maximum number of evolutionary cycles. | `15000` |
+| **Genome Length** | Max steps a walker can take (chromosome length). | `1000` |
+| **Elitism Count** | Number of top performers preserved unchanged. | `5` |
+| **Adaptive Rates** | Comma-separated mutation rates for adaptive logic. | `0.01, 0.1, 0.5, 1.0` |
 
-## 🧬 Technical Deep Dive: The Genetic Algorithm
+### Strategy Selection
+You can mix and match different evolutionary strategies:
 
-The `GeneticSolver` included in this project uses a **Pure 1D Arithmetic** approach to bypass Java's Garbage Collection overhead.
+*   **Selection:** *Tournament, Rank, Roulette Wheel*
+*   **Crossover:** *Multi-Point, Uniform*
+*   **Mutation:** *Inversion, Fixed Count, Random Reset, Swap*
+*   **Fitness:** *Hybrid (Proximity + Cost), Proximity, Minimum Weight*
+*   **Initialization:** *Heuristic, Hybrid, Random*
 
-  * **Flattened Memory:** Instead of checking `grid[r][c].isWall` (which causes pointer chasing), the map is converted to a `boolean[]` array.
-  * **Boundary Padding:** The map is wrapped in a "virtual wall" border, removing the need for `if (x < 0 || x >= width)` boundary checks inside the simulation loop.
-  * **Logarithmic Skip Mutation:** Instead of checking every gene for mutation, we calculate *how many genes to skip* before the next mutation occurs, significantly reducing CPU cycles.
+## 🧠 How It Works
 
------
+The core of the project relies on a modular architecture:
+1.  **Maze Parsing:** Text files are converted into a 2D grid of `Cell` objects.
+2.  **Pathfinding Solvers:**
+    *   **Deterministic (A*, Dijkstra):** Explore the grid using priority queues to find the mathematically optimal path.
+    *   **Stochastic (Genetic):**
+        *   **Population:** A collection of "Walkers" (paths) is created.
+        *   **Selection:** The fittest walkers (closest to goal/lowest cost) are chosen.
+        *   **Crossover:** Parents swap moves to create offspring.
+        *   **Mutation:** Random changes are introduced to maintain diversity.
+        *   **Loop:** This repeats until a solution is found or generations are exhausted.
 
-## 👨‍💻 Author
+## 🤝 Contribution Policy
 
-**Student Name:** Krittaphat Panyasomphan
-**University:** King Mongkut's University of Technology Thonburi (KMUTT)
-**Course:** CPE Algorithms
+We welcome contributions! Please refer to our [CONTRIBUTING.md](CONTRIBUTING.md) file for detailed guidelines on how to report bugs, suggest features, and submit pull requests.
+
+## 📄 License Details
+
+This project is licensed under the **MIT License**.
+
+**You are free to:**
+*   Use the code for commercial purposes.
+*   Modify the code.
+*   Distribute the code.
+*   Sublicense the code.
+
+**Under the following conditions:**
+*   Include the original copyright notice and license in any copy of the software/source.
+
+For the full license text, please see the [LICENSE.txt](LICENSE.txt) file.
