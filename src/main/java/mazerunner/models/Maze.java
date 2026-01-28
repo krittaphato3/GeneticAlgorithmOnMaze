@@ -1,6 +1,7 @@
-package models;
+package mazerunner.models;
 
 public class Maze {
+
     public Cell[][] grid;
     public int rows;
     public int cols;

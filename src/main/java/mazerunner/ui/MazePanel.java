@@ -1,13 +1,11 @@
-package ui;
+package mazerunner.ui;
 
-import models.Cell;
-import models.Maze;
-
-import javax.swing.*;
+import mazerunner.models.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.List;
+import javax.swing.*;
 
 public class MazePanel extends JPanel {
 

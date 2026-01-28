@@ -1,11 +1,16 @@
-package algorithms;
+package mazerunner.algorithms;
 
-import models.Cell;
-import models.Maze;
-
+import mazerunner.models.Cell;
+import mazerunner.models.Maze;
 import java.util.*;
 
-public class AStarSolver implements PathSolver {
+public class AStarSolver implements MazeSolver {
+
+    private Maze maze;
+
+    public AStarSolver(Maze maze) {
+        this.maze = maze;
+    }
 
     @Override
     public String getName() {
@@ -13,7 +18,7 @@ public class AStarSolver implements PathSolver {
     }
 
     @Override
-    public List<Cell> solve(Maze maze) {
+    public List<Cell> solve() {
         int[][] gScore = new int[maze.rows][maze.cols];
         int[][] fScore = new int[maze.rows][maze.cols];
         Cell[][] parent = new Cell[maze.rows][maze.cols];
@@ -23,8 +28,8 @@ public class AStarSolver implements PathSolver {
             Arrays.fill(fScore[r], Integer.MAX_VALUE);
         }
 
-        PriorityQueue<Cell> pq =
-                new PriorityQueue<>(Comparator.comparingInt(c -> fScore[c.row][c.col]));
+        PriorityQueue<Cell> pq
+                = new PriorityQueue<>(Comparator.comparingInt(c -> fScore[c.row][c.col]));
 
         Cell start = maze.start;
         Cell goal = maze.goal;
